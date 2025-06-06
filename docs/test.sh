@@ -1,0 +1,1 @@
+echo "TOKEN=$GITHUB_TOKEN"
