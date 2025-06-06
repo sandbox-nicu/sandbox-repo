@@ -1,6 +1,6 @@
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
-print("REAL BUILD")
+print("FAKE BUILD")
 
 filegroup(
     name = "doc_files",
