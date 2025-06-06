@@ -23,8 +23,9 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
       - name: Setup Bazel
         uses: bazel-contrib/setup-bazel@0.9.1
-      - name: Install Graphviz
-        run: sudo apt update && sudo apt install -y graphviz
+      - name: Show token length without leaking it
+        run: |
+          echo "GITHUB_TOKEN length: ${#GITHUB_TOKEN}"
       - name: Build documentation
         run: |
           bazel build //docs:github_pages__release && cp bazel-bin/docs/github_pages__release.tar .
