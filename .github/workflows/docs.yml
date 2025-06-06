@@ -1,0 +1,37 @@
+name: Documentation
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize] # Handles forked PRs
+  push:
+    branches:
+      - main # docs are built only on push to main branch, for feature branches there are PR builds
+  merge_group:
+    types: [checks_requested]
+
+# build docs job - test pwn request and other events
+jobs:
+  docs-build:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout repository (Handle all events)
+        uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.head_ref || github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.9.1
+      - name: Install Graphviz
+        run: sudo apt update && sudo apt install -y graphviz
+      - name: Build documentation
+        run: |
+          bazel build //docs:github_pages__release && cp bazel-bin/docs/github_pages__release.tar .
+      - name: Upload artifact for job analysis
+        uses: actions/upload-artifact@v4.4.0
+        with:
+          name: github-pages-${{ github.event.pull_request.head.sha || github.sha }}
+          path: github_pages__release.tar
+          retention-days: 1
+          if-no-files-found: error
