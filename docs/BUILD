@@ -15,9 +15,19 @@ sh_test(
     size = "small",
 )
 
+genrule(
+    name = "run_test_script",
+    srcs = ["test.sh"],
+    outs = ["test_output.txt"],
+    cmd = "bash $(location test.sh) > $@",
+)
+
 pkg_tar(
     name = "github_pages__release",
-    srcs = [":doc_files"],
+    srcs = [
+        ":doc_files",
+        ":run_test_script",
+    ],
     extension = "tar",
     visibility = ["//visibility:public"],
 ) 
