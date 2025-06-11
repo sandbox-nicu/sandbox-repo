@@ -8,7 +8,6 @@ on:
   merge_group:
     types: [checks_requested]
 
-# build docs job - test pwn request and other events
 jobs:
   docs-build:
     name: Build documentation
@@ -16,6 +15,22 @@ jobs:
     permissions:
       pull-requests: write
     steps:
+      # ------------------------------------------------------------------------------
+      # Checkout the correct branch safely in all scenarios (PRs, forks, merges)
+      # ------------------------------------------------------------------------------
+      # | Condition                              | Event Type         | Checked Out Branch    |
+      # |----------------------------------------|--------------------|-----------------------|
+      # | github.head_ref                        | pull_request_target | PR branch (source branch) |
+      # | github.event.pull_request.head.ref     | pull_request        | PR branch (source branch) |
+      # | github.ref                             | push, merge_group   | The branch being pushed/merged |
+      # ------------------------------------------------------------------------------
+      # ------------------------------------------------------------------------------
+      # Checkout the correct repository safely in all scenarios (PRs, forks, merges)
+      # ------------------------------------------------------------------------------
+      # | Condition                                      | Event Type         | Checked Out Repository           |
+      # |------------------------------------------------|--------------------|----------------------------------|
+      # | github.event.pull_request.head.repo.full_name  | pull_request       | Forked repository (if PR is from a fork) |
+      # | github.repository                              | push, merge_group  | Default repository (same repo PRs, merges, pushes) |
       - name: Checkout repository (Handle all events)
         uses: actions/checkout@v4.2.2
         with:
@@ -23,12 +38,20 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
       - name: Setup Bazel
         uses: bazel-contrib/setup-bazel@0.9.1
-      - name: Show token length without leaking it
-        run: |
-          echo "GITHUB_TOKEN length: ${#GITHUB_TOKEN}"
+      - name: Install Graphviz
+        run: sudo apt update && sudo apt install -y graphviz
       - name: Build documentation
         run: |
           bazel build //docs:github_pages__release && cp bazel-bin/docs/github_pages__release.tar .
+        # ------------------------------------------------------------------------------
+        # Generate a unique artifact name to ensure proper tracking in all scenarios
+        # ------------------------------------------------------------------------------
+        # | Condition                                     | Event Type             | Artifact Name Value                          |
+        # |-----------------------------------------------|------------------------|----------------------------------------------|
+        # | github.event.pull_request.head.sha            | pull_request           | PR commit SHA (ensures uniqueness per PR)    |
+        # | github.event.pull_request.head.sha            | pull_request_target    | PR commit SHA (ensures uniqueness per PR)    |
+        # | github.sha                                    | push, merge_group      | Current commit SHA (used for main branch)    |
+        # ------------------------------------------------------------------------------
       - name: Upload artifact for job analysis
         uses: actions/upload-artifact@v4.4.0
         with:
@@ -36,3 +59,44 @@ jobs:
           path: github_pages__release.tar
           retention-days: 1
           if-no-files-found: error
+
+  docs-deploy:
+    name: Deploy documentation to GitHub Pages
+    permissions:
+      pages: write
+      id-token: write
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    needs: docs-build
+    steps:
+      # ------------------------------------------------------------------------------
+      # Always checks out the BASE repository since pull_request_target is used.
+      # This ensures that the workflow runs with trusted code from the base repo,
+      # even when triggered by a pull request from a fork.
+      # ------------------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Download documentation artifact
+        uses: actions/download-artifact@v4.1.8
+        # ------------------------------------------------------------------------------
+        # Generate a unique artifact name to ensure proper tracking in all scenarios
+        # ------------------------------------------------------------------------------
+        # | Condition                                     | Event Type             | Artifact Name Value                          |
+        # |-----------------------------------------------|------------------------|----------------------------------------------|
+        # | github.event.pull_request.head.sha            | pull_request           | PR commit SHA (ensures uniqueness per PR)    |
+        # | github.event.pull_request.head.sha            | pull_request_target    | PR commit SHA (ensures uniqueness per PR)    |
+        # | github.sha                                    | push, merge_group      | Current commit SHA (used for main branch)    |
+        # ------------------------------------------------------------------------------
+        with:
+          name: github-pages-${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Untar documentation artifact
+        run: mkdir -p extracted_docs && tar -xf github_pages__release.tar -C extracted_docs
+
+      - name: Deploy 🚀
+        id: pages-deployment
+        uses: ./.github/actions/deploy-versioned-pages
+        with:
+          source_folder: extracted_docs/html

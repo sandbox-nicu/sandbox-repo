@@ -1,0 +1,14 @@
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+
+genrule(
+    name = "generate_index",
+    outs = ["index.html"],
+    cmd = "echo 'hello world' > $@",
+)
+
+pkg_tar(
+    name = "github_pages__release",
+    srcs = [":index.html"],
+    strip_prefix = ".",
+    package_dir = "html",
+) 
