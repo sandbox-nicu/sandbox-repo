@@ -29,5 +29,5 @@ jobs:
             -H "Authorization: Bearer $TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/orgs/${ORG}/settings/billing/actions" \
+            "https://api.github.com/organizations/${ORG}/settings/billing/usage?year=2025&product=Actions" \
           | jq . | tee $GITHUB_STEP_SUMMARY
