@@ -1,0 +1,52 @@
+name: Billing test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-usage:
+    name: Check GitHub-hosted runner availability
+    runs-on: ubuntu-latest
+    outputs:
+      hosted_ok: ${{ steps.evaluate.outputs.ok }}
+      remaining: ${{ steps.usage.outputs.remaining }}
+    steps:
+      - id: auth
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id:       ${{ secrets.GH_APP_ID }}
+          private_key:  ${{ secrets.GH_APP_PRIVATE_KEY }}
+          #installation_retrieval_mode: id
+          #installation_retrieval_payload: 66839199
+
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          # required
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+
+      - id: usage
+        run: |
+          echo "token: ${{ steps.app-token.outputs.token }}"
+           JSON=$(curl -sSf \
+            -H "Authorization: Bearer ${{ steps.app-token.outputs.token }}" \
+            "https://api.github.com/orgs/sandbox-nicu/settings/billing/actions")
+
+          included=$(jq '.included_minutes'        <<<"$JSON")
+          used    =$(jq '.total_minutes_used'      <<<"$JSON")
+          remaining=$((included - used))
+
+          echo "included=$included"
+          echo "used=$used"
+          echo "remaining=$remaining"
+          echo "remaining=$remaining" >>"$GITHUB_OUTPUT"
+
+      - id: evaluate
+        run: |
+          THRESHOLD=5          # minutes you want to keep in reserve
+          if [ ${{ steps.usage.outputs.remaining }} -gt $THRESHOLD ]; then
+            echo "ok=true"  >>"$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >>"$GITHUB_OUTPUT"
+          fi
