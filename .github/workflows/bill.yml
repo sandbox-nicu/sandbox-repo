@@ -1,0 +1,33 @@
+name: Query Actions billing (GitHub App)
+
+on:
+  workflow_dispatch:
+    inputs:
+      org:
+        description: 'Organisation to query'
+        default: 'sandbox-nicu'
+        required: true
+
+jobs:
+  billing:
+    runs-on: ubuntu-latest
+    permissions: {}          # everything comes from the App token
+    steps:
+      - name: Mint installation token
+        id: app-token
+        uses: tibdex/github-app-token@v2   # or actions/create-github-app-token@v2
+        with:
+          app_id: ${{ secrets.GH_APP_ID }}
+          private_key: ${{ secrets.GH_APP_PRIVATE_KEY  }}
+
+      - name: Call billing endpoint
+        env:
+          ORG: ${{ github.event.inputs.org }}
+          TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          curl -sSL \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/orgs/${ORG}/settings/billing/actions" \
+          | jq . | tee $GITHUB_STEP_SUMMARY
