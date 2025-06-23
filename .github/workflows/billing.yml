@@ -30,7 +30,7 @@ jobs:
         run: |
           JSON=$(curl -sSf \
             -H "Authorization: Bearer ${{ steps.app-token.outputs.token }}" \
-            "https://api.github.com/orgs/qorix-group/settings/billing/actions")
+            "https://api.github.com/orgs/sandbox-nicu/settings/billing/actions")
           included=$(jq '.included_minutes' <<<"$JSON")
           used=$(jq '.total_minutes_used' <<<"$JSON")
           remaining=$((included - used))
